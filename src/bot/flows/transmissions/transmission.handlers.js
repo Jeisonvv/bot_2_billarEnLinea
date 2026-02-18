@@ -146,7 +146,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
       if (phone.length !== 10) {
         return client.sendMessage(
           user,
-          "📱Por favor escribe tu número valido de contacto. Para enviarle la cotización."
+          "📱Por favor escribe un número válido de contacto. Para enviarle la cotización."
         );
       }
       stateData.contactPhone = Number(phone);
