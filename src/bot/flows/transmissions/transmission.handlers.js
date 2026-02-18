@@ -1,4 +1,5 @@
 
+
 import {
   setState,
   getStateData,
@@ -9,8 +10,10 @@ import {
   upDateName,
   findOrCreateUser,
   updateUserPhoneAndName,
+  registerUserInteraction,
 } from "../../../services/user.service.js";
 import { finalizarLeadTransmision } from "../../../utils/finalizarLeadTransmision.js";
+import { messageWelcome } from "../../../utils/messages.js";
 
 export const handleTransmissionSteps = async (client, msg, state, userData) => {
   const user = msg.from;
@@ -22,14 +25,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
     clearStateData(user);
     await setState(user, "IDLE");
 
-    return client.sendMessage(
-      user,
-      "Volvemos al inicio 🎱\n\n" +
-        "🛒 Tienda\n" +
-        "🏆 Transmisiones\n" +
-        "🎯 Eventos\n" +
-        "🎁 Sorteos\n",
-    );
+    return client.sendMessage(user, messageWelcome(userData));
   }
 
   const stateData = (await getStateData(user)) || {};
@@ -111,18 +107,28 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
       // 🔥 BUSCAMOS EL USUARIO EN DB
 
       // 👇 SI YA TIENE TELEFONO → SALTAMOS EL ESTADO
-      if (userData.phone && userData.phone.trim().length > 5) {
+      // Validar que el teléfono sea un número de 10 dígitos
+      if (
+        typeof userData.phone === "number" &&
+        userData.phone.toString().length === 10
+      ) {
         stateData.contactPhone = userData.phone;
         stateData.contactName = userData.name;
         setStateData(user, stateData);
 
         // 👉 ejecutamos directamente la lógica final
+        await registerUserInteraction({
+            whatsappId: user,
+            interestType: "TRANSMISSION",
+            statusUpdate: "QUOTED"
+          });
         return await finalizarLeadTransmision(
           client,
           user,
           stateData,
           userData,
         );
+        
       }
 
       // ❗ Si NO tiene teléfono → lo pedimos
@@ -135,25 +141,39 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
     },
 
     TRANSMISSION_CONTACT_PHONE: async () => {
+      // Validar que el número tenga exactamente 10 dígitos numéricos
+      const phone = text.replace(/\D/g, ""); // Elimina todo lo que no sea dígito
+      if (phone.length !== 10) {
+        return client.sendMessage(
+          user,
+          "📱Por favor escribe tu número de contacto. Para enviarle la cotización."
+        );
+      }
+      stateData.contactPhone = Number(phone);
+      setStateData(user, stateData);
 
-  stateData.contactPhone = text;
-  setStateData(user, stateData);
+      const usuarioDb = await findOrCreateUser(user);
 
-  const usuarioDb = await findOrCreateUser(user);
+      await updateUserPhoneAndName(
+        usuarioDb.whatsappId || user,
+        stateData.contactPhone,
+        stateData.contactName
+      );
 
-  await updateUserPhoneAndName(
-    usuarioDb.whatsappId || user,
-    stateData.contactPhone,
-    stateData.contactName
-  );
+      // Actualizamos el status a 'QUOTED' al terminar el registro de la cotización
+      await registerUserInteraction({
+        whatsappId: user,
+        interestType: "TRANSMISSION",
+        statusUpdate: "QUOTED"
+      });
 
-  return await finalizarLeadTransmision(
-    client,
-    user,
-    stateData,
-    usuarioDb
-  );
-},
+      return await finalizarLeadTransmision(
+        client,
+        user,
+        stateData,
+        usuarioDb
+      );
+    },
 
   };
 

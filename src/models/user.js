@@ -9,8 +9,8 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    // Número de teléfono del usuario, debe ser único y obligatorio
-    phone: String,
+    // Número de teléfono del usuario (opcional)
+    phone: Number,
 
     // Nombre del usuario (opcional)
     name: String,

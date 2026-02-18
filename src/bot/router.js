@@ -11,6 +11,7 @@ import { transmissionsFlow } from "./flows/transmissions/transmissions.flow.js";
 import { billarInfoFlow } from "./flows/billarInfo.flow.js";
 import { findOrCreateUser } from "../services/user.service.js";
 import { handleTransmissionSteps } from "./flows/transmissions/transmission.handlers.js";
+import { messageWelcome } from "../utils/messages.js";
 
 
 // Activar modo BILLAR_INFO manualmente desde menú
@@ -48,31 +49,26 @@ export const handleMessage = async (client, msg) => {
 
   switch (intent) {
     case "STORE":
-      return storeFlow(client, msg);
+      return storeFlow(client, msg, userData);
 
     case "EVENTS":
       return eventsFlow(client, msg);
 
     case "INFO":
-      return infoFlow(client, msg);
+      return infoFlow(client, msg, userData);
 
     case "RAFFLES":
-      return rafflesFlow(client, msg);
+      return rafflesFlow(client, msg, userData);
 
     case "TOURNAMENT_REGISTER":
-      return tournamentRegisterFlow(client, msg);
+      return tournamentRegisterFlow(client, msg, userData);
     case "TRANSMISSIONS":
       return transmissionsFlow(client, msg, userData);
 
     default:
       return client.sendMessage(
         user,
-        "Bienvenido a Billar en Línea 🎱\n\n" +
-          "🛒 Tienda\n" +
-          "🏆 Transmisiones\n" +
-          "🎯 Eventos\n" +
-          "🎁 Sorteos\n" +
-          "🎱 Consejos y tips de billar\n",
+        messageWelcome(userData)
       );
   }
 };
@@ -119,12 +115,7 @@ const continueFlow = async (client, msg, state) => {
 
         return client.sendMessage(
           user,
-          "Bienvenido nuevamente 🎱\n\n" +
-            "🛒 Tienda\n" +
-            "🏆 Transmisiones\n" +
-            "🎯 Eventos\n" +
-            "🎁 Sorteos\n" +
-            "🎱 Consejos y tips de billar\n",
+          MAIN_MENU_MESSAGE
         );
       }
 

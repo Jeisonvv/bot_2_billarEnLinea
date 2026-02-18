@@ -6,12 +6,15 @@ export const transmissionsFlow = async (client, msg, userData) => {
   await stateTypingDelay(msg);
   const user = msg.from;
 
-  // 2️⃣ Registramos interés
-  await registerUserInteraction({
-    whatsappId: user,
-    interestType: "TRANSMISSION",
-    statusUpdate: "INTERESTED"
-  });
+  // 2️⃣ Registramos interés solo si el status NO es 'QUOTED'
+  const usuarioDb = await findOrCreateUser(user);
+  if (usuarioDb.status !== "QUOTED") {
+    await registerUserInteraction({
+      whatsappId: user,
+      interestType: "TRANSMISSION",
+      statusUpdate: "INTERESTED"
+    });
+  }
 
   // 🔥 LÓGICA CLAVE:
   // Si ya tiene nombre → saltamos pedirlo
