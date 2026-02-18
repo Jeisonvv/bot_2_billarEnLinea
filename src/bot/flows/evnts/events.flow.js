@@ -1,7 +1,7 @@
 // Este archivo define el flujo para eventos.
-import { registerUserInteraction } from "../../services/user.service.js";
-import { findOrCreateUser } from "../../services/user.service.js";
-import { stateTypingDelay } from "../../utils/stateTipingDelay.js";
+import { registerUserInteraction, findOrCreateUser } from "../../../services/user.service.js";
+
+import { stateTypingDelay } from "../../../utils/stateTipingDelay.js";
 // Responde a los usuarios que preguntan por torneos, eventos o actividades especiales.
 
 export const eventsFlow = async (client, msg) => {
@@ -20,6 +20,6 @@ export const eventsFlow = async (client, msg) => {
 
   await client.sendMessage(
     msg.from,
-    "🎉 Próximos eventos: Torneos, rifas y más. ¡Mantente atento!"
+    "🎉 aqui podras ver los eventos y actividades especiales que tenemos para ti."
   );
 };

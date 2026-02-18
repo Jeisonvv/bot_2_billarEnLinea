@@ -1,5 +1,3 @@
-
-
 import {
   setState,
   getStateData,
@@ -14,8 +12,10 @@ import {
 } from "../../../services/user.service.js";
 import { finalizarLeadTransmision } from "../../../utils/finalizarLeadTransmision.js";
 import { messageWelcome } from "../../../utils/messages.js";
+import { stateTypingDelay } from "../../../utils/stateTipingDelay.js";
 
 export const handleTransmissionSteps = async (client, msg, state, userData) => {
+    await stateTypingDelay(msg);
   const user = msg.from;
   const text = msg.body?.trim();
   const lowerText = text?.toLowerCase();

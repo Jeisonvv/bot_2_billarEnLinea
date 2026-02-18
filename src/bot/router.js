@@ -3,7 +3,7 @@
 import { getState, setState } from "./stateManager.js";
 import { classifyIntent } from "./aiClassifier.js";
 import { storeFlow } from "./flows/store.flow.js";
-import { eventsFlow } from "./flows/events.flow.js";
+import { eventsFlow } from "./flows/evnts/events.flow.js";
 import { infoFlow } from "./flows/info.flow.js";
 import { rafflesFlow } from "./flows/raffles.flow.js";
 import { tournamentRegisterFlow } from "./flows/tournamentRegister.flow.js";
@@ -11,10 +11,11 @@ import { transmissionsFlow } from "./flows/transmissions/transmissions.flow.js";
 import { billarInfoFlow } from "./flows/billarInfo.flow.js";
 import { findOrCreateUser } from "../services/user.service.js";
 import { handleTransmissionSteps } from "./flows/transmissions/transmission.handlers.js";
-import { messageWelcome } from "../utils/messages.js";
+
+import express from "express";
+const router = express.Router();
 
 
-// Activar modo BILLAR_INFO manualmente desde menú
 
 export const handleMessage = async (client, msg) => {
   // ⏳ Simular que el bot está "escribiendo" antes de responder
@@ -122,3 +123,11 @@ const continueFlow = async (client, msg, state) => {
       return billarInfoFlow(client, msg);
   }
 };
+
+
+import { handleMessagePostman } from "./controllers/message.controller.js";
+
+// Endpoint para pruebas desde Postman
+router.post("/message", handleMessagePostman);
+
+export default router;
