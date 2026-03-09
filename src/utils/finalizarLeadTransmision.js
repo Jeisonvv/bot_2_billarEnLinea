@@ -1,18 +1,8 @@
 import { clearStateData, setState } from "../bot/stateManager.js";
-import TransmissionLead from "../models/TransmissionLead.js";
 export const finalizarLeadTransmision = async (client, user, stateData, usuarioDb) => {
 
-  await TransmissionLead.create({
-    user: usuarioDb._id,
-    phone: stateData.contactPhone,
-    contactName: stateData.contactName,
-    billiardName: stateData.billiardName,
-    city: stateData.city,
-    tournamentType: stateData.tournamentType,
-    eventDate: stateData.eventDate,
-    serviceType: stateData.serviceType,
-    status: "PENDING",
-  });
+  // Aquí deberías hacer una petición HTTP al backend para crear el lead de transmisión
+  // await fetch('http://tu-backend/api/transmission-leads', { method: 'POST', ... })
 
   clearStateData(user);
   await setState(user, "HUMAN_TAKEOVER");

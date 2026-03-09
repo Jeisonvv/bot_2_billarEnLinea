@@ -7,12 +7,12 @@ export const transmissionsFlow = async (client, msg, userData) => {
   const user = msg.from;
 
   // 2️⃣ Registramos interés solo si el status NO es 'QUOTED'
-  const usuarioDb = await findOrCreateUser(user);
+  const usuarioDb = await findOrCreateUser("WHATSAPP", user);
   if (usuarioDb.status !== "QUOTED") {
     await registerUserInteraction({
-      whatsappId: user,
+      userId: usuarioDb._id,
       interestType: "TRANSMISSION",
-      statusUpdate: "INTERESTED"
+      channel: "WHATSAPP"
     });
   }
 

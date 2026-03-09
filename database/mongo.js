@@ -4,11 +4,8 @@ import mongoose from 'mongoose';
 
 export const connectDB = async () => {
   try {
-    // Conecta a MongoDB usando la URI del archivo .env y el nombre de la base de datos
-    await mongoose.connect(process.env.MONGO_URI, {
-      dbName: "billarBot_dev"
-    });
-
+    // Conecta a MongoDB usando la URI del archivo .env (incluye la base de datos)
+    await mongoose.connect(process.env.MONGODB_URI);
     // Mensaje de éxito en la conexión
     console.log("✅ MongoDB conectado correctamente");
   } catch (error) {

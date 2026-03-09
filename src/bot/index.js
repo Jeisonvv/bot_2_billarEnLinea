@@ -16,6 +16,34 @@ import qrcode from "qrcode-terminal";
 export const initBot = async () => {
   const client = new Client({
     authStrategy: new LocalAuth(),
+    puppeteer: {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        // '--single-process',
+        '--disable-gpu'
+      ]
+    }
+  });
+  // Manejo de errores críticos y desconexión
+  client.on("disconnected", (reason) => {
+    console.error("Cliente desconectado:", reason);
+    process.exit(1);
+  });
+
+  client.on("auth_failure", (msg) => {
+    console.error("Fallo de autenticación:", msg);
+    process.exit(1);
+  });
+
+  client.on("error", (err) => {
+    console.error("Error en el cliente:", err);
+    process.exit(1);
   });
 
   // Muestra el QR para conectar WhatsApp
@@ -44,7 +72,11 @@ export const initBot = async () => {
     await handleMessage(client, msg);
   });
 
-  await client.initialize();
+  try {
+    await client.initialize();
+  } catch (error) {
+    console.error('Error al inicializar el bot:', error);
+  }
 };
 // =============================
 // Endpoint para pruebas desde Postman

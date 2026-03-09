@@ -1,3 +1,7 @@
+// Manejo global de promesas no manejadas
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 // =============================
 // app.js - Archivo principal del servidor
 // Inicializa Express, conecta a la base de datos y configura rutas
@@ -6,13 +10,11 @@
 // Importar dependencias principales
 import express from "express";
 import { initBot } from "./bot/index.js";
-import { connectDB } from "../database/mongo.js";
 import botRouter from "./bot/router.js";
 
 // =============================
 // Conexión a la base de datos
 // =============================
-connectDB();
 
 // =============================
 // Inicialización de Express

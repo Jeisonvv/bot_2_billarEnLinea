@@ -1,39 +1,40 @@
-// Importa el modelo de usuario para interactuar con la base de datos
-import User from "../models/user.js";
+// Todas las funciones quedan vacías o retornan valores por defecto, ya que la lógica debe estar en el backend.
 
-// Obtiene el estado actual del usuario (flujo en el que está)
+
+import { findOrCreateUser, updateConversationState, getConversationState } from "../services/user.service.js";
+
+const CHANNEL = "WHATSAPP";
+
+
+// Obtiene el estado actual del usuario desde el backend usando el nuevo endpoint
 export const getState = async (whatsappId) => {
-  const user = await User.findOne({ whatsappId });
-  // Si no tiene estado, retorna "IDLE" (sin flujo activo)
-  return user?.currentState || "IDLE";
+	const user = await findOrCreateUser(CHANNEL, whatsappId);
+	const state = await getConversationState(user._id, CHANNEL);
+	return state?.currentState || "IDLE";
 };
 
-// Actualiza el estado actual del usuario en la base de datos
+// Guarda el estado actual en el backend
 export const setState = async (whatsappId, state) => {
-  await User.findOneAndUpdate(
-    { whatsappId },
-    { currentState: state }
-  );
+	const user = await findOrCreateUser(CHANNEL, whatsappId);
+	await updateConversationState(user._id, CHANNEL, state, user?.conversationState?.stateData || {});
 };
 
-// Guarda datos temporales del flujo (por ejemplo, respuestas del usuario)
+// Guarda datos adicionales del estado conversacional
 export const setStateData = async (whatsappId, data) => {
-  await User.findOneAndUpdate(
-    { whatsappId },
-    { stateData: data }
-  );
+	const user = await findOrCreateUser(CHANNEL, whatsappId);
+	await updateConversationState(user._id, CHANNEL, user?.conversationState?.currentState || "IDLE", data);
 };
 
-// Obtiene los datos temporales guardados del usuario
+
+// Obtiene los datos adicionales del estado conversacional usando el nuevo endpoint
 export const getStateData = async (whatsappId) => {
-  const user = await User.findOne({ whatsappId });
-  return user?.stateData || {};
+	const user = await findOrCreateUser(CHANNEL, whatsappId);
+	const state = await getConversationState(user._id, CHANNEL);
+	return state?.stateData || {};
 };
 
-// Limpia los datos temporales del usuario (para reiniciar el flujo)
+// Limpia los datos del estado conversacional
 export const clearStateData = async (whatsappId) => {
-  await User.findOneAndUpdate(
-    { whatsappId },
-    { stateData: {} }
-  );
+	const user = await findOrCreateUser(CHANNEL, whatsappId);
+	await updateConversationState(user._id, CHANNEL, "IDLE", {});
 };

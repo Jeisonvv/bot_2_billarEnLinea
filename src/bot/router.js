@@ -9,7 +9,7 @@ import { storeFlow } from "./flows/store.flow.js";
 import { eventsFlow } from "./flows/evnts/events.flow.js";
 import { infoFlow } from "./flows/info.flow.js";
 import { rafflesFlow } from "./flows/raffles.flow.js";
-import { tournamentRegisterFlow } from "./flows/tournamentRegister.flow.js";
+import { tournamentRegisterFlow } from "./flows/Tournament/tournamentRegister.flow.js";
 import { transmissionsFlow } from "./flows/transmissions/transmissions.flow.js";
 import { billarInfoFlow } from "./flows/billarInfo.flow.js";
 import { findOrCreateUser } from "../services/user.service.js";
@@ -26,9 +26,10 @@ export const handleMessage = async (client, msg) => {
   // Simula que el bot está "escribiendo" antes de responder
   const user = msg.from;
   const text = msg.body?.toLowerCase().trim();
-  const userData = await findOrCreateUser(user);
+  // Corregido: pasar provider y providerId
+  const userData = await findOrCreateUser("WHATSAPP", user);
   if (!text) return;
-  await findOrCreateUser(user);
+  await findOrCreateUser("WHATSAPP", user);
   const currentState = await getState(user);
 
   // 1️⃣ Si ya está en un flujo activo, continuar ese flujo
@@ -60,6 +61,7 @@ export const handleMessage = async (client, msg) => {
     case "RAFFLES":
       return rafflesFlow(client, msg, userData);
     case "TOURNAMENT_REGISTER":
+      await setState(user, "INSCRIPCION_TORNEO");
       return tournamentRegisterFlow(client, msg, userData);
     case "TRANSMISSIONS":
       return transmissionsFlow(client, msg, userData);
@@ -75,13 +77,18 @@ export const handleMessage = async (client, msg) => {
 const continueFlow = async (client, msg, state) => {
   const user = msg.from;
   const text = msg.body?.toLowerCase().trim();
-  const userData = await findOrCreateUser(user);
+  const userData = await findOrCreateUser("WHATSAPP", user);
 
   // Si el estado es de toma de control humano, el bot no responde
   if (state === "HUMAN_TAKEOVER") {
     return;
   }
 
+
+  // Subflujo de inscripción a torneo
+  if (state === "INSCRIPCION_TORNEO") {
+    return tournamentRegisterFlow(client, msg, userData);
+  }
   // Subflujo de transmisión
   if (typeof state === "string" && state.startsWith("TRANSMISSION_")) {
     return handleTransmissionSteps(client, msg, state, userData);

@@ -1,4 +1,15 @@
-import User from "../models/user.js";
+// Obtener solo el estado conversacional de un usuario por canal
+export const getConversationState = async (userId, channel = "WHATSAPP") => {
+  const res = await fetch(`${BASE_URL}/${userId}/conversation-state?channel=${channel}`, {
+    headers: {
+      "Authorization": `Bearer ${jwtToken}`
+    }
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.data;
+};
+// Eliminado import de modelo User, solo se usan peticiones HTTP al backend
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
@@ -12,75 +23,147 @@ const getNow = () => dayjs().tz("America/Bogota").toDate();
 // 🔹 1️⃣ Encontrar o crear usuario
 // Esta función busca un usuario por whatsappId. Si no existe, intenta crearlo.
 // Si ocurre un error de duplicado (E11000), lo captura y retorna el usuario existente.
-export const findOrCreateUser = async (userId) => {
-  // userId es el ID completo de WhatsApp (ej: '123456789@c.us')
-  let user = await User.findOne({ whatsappId: userId });
-  if (!user) {
-    try {
-      user = await User.create({
-        whatsappId: userId,
-        lastInteraction: getNow()
-      });
-    } catch (err) {
-      // Si ocurre un error de duplicado, buscamos el usuario y lo retornamos
-      if (err.code === 11000) {
-        // Comentario: Esto ocurre si dos procesos intentan crear el mismo usuario al mismo tiempo.
-        // MongoDB lanza un error de clave duplicada (E11000). En ese caso, buscamos el usuario existente.
-        user = await User.findOne({ whatsappId: userId });
-      } else {
-        throw err;
+
+
+const BASE_URL = "http://localhost:3000/api/users";
+const AUTH_URL = "http://localhost:3000/api/auth/login";
+
+// Token JWT tomado de variable de entorno
+import dotenv from "dotenv";
+dotenv.config();
+const jwtToken = process.env.BOT_JWT_TOKEN;
+
+// Buscar o crear usuario por canal y providerId
+export const findOrCreateUser = async (provider, providerId) => {
+  try {
+    // Esperar a que el bot esté autenticado
+    if (!jwtToken) await loginBot();
+    let res = await fetch(`${BASE_URL}/by-provider/${provider}/${providerId}`, {
+      headers: {
+        "Authorization": `Bearer ${jwtToken}`
       }
-    }
-  }
-  return user;
-};
-
-// 🔹 2️⃣ Registrar interacción (REUTILIZABLE PARA TODO)
-export const registerUserInteraction = async ({
-  whatsappId,
-  interestType,
-  statusUpdate = null
-}) => {
-  const user = await findOrCreateUser(whatsappId);
-
-  const existingInterest = user.interests.find(
-    (i) => i.type === interestType
-  );
-
-  if (existingInterest) {
-    existingInterest.count += 1;
-    existingInterest.lastInteraction = getNow();
-  } else {
-    user.interests.push({
-      type: interestType,
-      count: 1,
-      lastInteraction: getNow(),
     });
+    if (res.ok) {
+      const data = await res.json();
+      // console.log("[findOrCreateUser] GET response:", data);
+      return data.data;
+    }
+    // Si no existe, lo creas vía POST
+    res = await fetch(`${BASE_URL}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${jwtToken}`
+      },
+      body: JSON.stringify({
+        identities: [{ provider, providerId }]
+      })
+    });
+    // Leer el body como texto una sola vez
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      console.log("[findOrCreateUser] POST response:", data);
+      return data.data;
+    } catch (err) {
+      console.error("[findOrCreateUser] POST response no es JSON:", text);
+      throw new Error(`Respuesta no válida del backend: ${text}`);
+    }
+  } catch (error) {
+    console.error("[findOrCreateUser] Error:", error);
+    throw error;
   }
-
-  user.lastInteraction = getNow();
-
-  // Actualiza el status siempre que se reciba statusUpdate
-  if (statusUpdate) {
-    user.status = statusUpdate;
-  }
-
-  await user.save();
-
-  return user;
 };
 
-export const upDateName = async (phone, newName) => {
-  const user = await findOrCreateUser(phone);
-  user.name = newName;
-  await user.save();
-  return user;
+// Registrar interacción/interés
+export const registerUserInteraction = async ({ userId, interestType, channel }) => {
+  // Obtener usuario
+  let user = await fetch(`${BASE_URL}/${userId}`, {
+    headers: {
+      "Authorization": `Bearer ${jwtToken}`
+    }
+  });
+  if (!user.ok) return null;
+  user = await user.json();
+  user = user.data;
+
+  // Actualizar intereses
+  let interests = user.interests || [];
+  const idx = interests.findIndex(i => i.type === interestType);
+  if (idx !== -1) {
+    interests[idx].count += 1;
+    interests[idx].lastInteraction = new Date();
+    interests[idx].channel = channel;
+  } else {
+    interests.push({ type: interestType, count: 1, lastInteraction: new Date(), channel });
+  }
+
+  // Log para depuración
+  console.log("[registerUserInteraction] interests PATCH:", JSON.stringify(interests, null, 2));
+
+  // Actualizar usuario
+  const patchRes = await fetch(`${BASE_URL}/${userId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${jwtToken}`
+    },
+    body: JSON.stringify({ interests })
+  });
+  const patchText = await patchRes.text();
+  if (!patchRes.ok) {
+    console.error("[registerUserInteraction] PATCH failed:", patchText);
+  }
+  try {
+    const patchData = JSON.parse(patchText);
+    console.log("[registerUserInteraction] PATCH response:", patchData);
+  } catch (err) {
+    console.error("[registerUserInteraction] PATCH response no es JSON:", patchText);
+  }
+  return { ...user, interests };
 };
 
-export const updateUserPhoneAndName = async (phone, newPhone, newName) => {
-  const user = await findOrCreateUser(phone);
-  user.phone = newPhone;
-  user.name = newName;
-  await user.save();
-  return user;
+// Actualizar nombre
+export const upDateName = async (userId, newName) => {
+  await fetch(`${BASE_URL}/${userId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${jwtToken}`
+    },
+    body: JSON.stringify({ name: newName })
+  });
+  // Obtener el usuario actualizado (con autenticación)
+  const res = await fetch(`${BASE_URL}/${userId}`, {
+    headers: {
+      "Authorization": `Bearer ${jwtToken}`
+    }
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.data;
+};
+
+// Actualizar teléfono y nombre
+export const updateUserPhoneAndName = async (userId, newPhone, newName) => {
+  await fetch(`${BASE_URL}/${userId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${jwtToken}`
+    },
+    body: JSON.stringify({ phone: newPhone, name: newName })
+  });
+};
+
+// Actualizar estado conversacional
+export const updateConversationState = async (userId, channel, currentState, stateData = {}) => {
+  await fetch(`${BASE_URL}/${userId}/conversation-state`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${jwtToken}`
+    },
+    body: JSON.stringify({ channel, currentState, stateData })
+  });
 };

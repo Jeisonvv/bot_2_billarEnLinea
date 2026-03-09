@@ -42,13 +42,21 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
         );
       }
       console.log("[DEBUG] Usuario sin nombre, guardando nombre:", text);
-      const updatedUser = await upDateName(user, text);
+      // Buscar el usuario para obtener el _id de MongoDB
+      const usuarioDb = await findOrCreateUser("WHATSAPP", user);
+      const updatedUser = await upDateName(usuarioDb._id, text);
+      if (!updatedUser) {
+        return client.sendMessage(
+          user,
+          "❌ Ocurrió un error al guardar tu nombre. Por favor intenta de nuevo más tarde."
+        );
+      }
       stateData.contactName = updatedUser.name;
       setStateData(user, stateData);
       await setState(user, "TRANSMISSION_CITY");
       return client.sendMessage(
         user,
-        `Perfecto ${updatedUser.name} 🙌\n\n🏢 ¿Cómo se llama el billar?\n\nRecuerda que puedes escribir *"menu" o "cancelar"* en cualquier momento para volver al inicio.`,
+        `Perfecto ${updatedUser.name} 🙌\n\n🏢 ¿Cómo se llama el billar?\n\nRecuerda que puedes escribir *\"menu\" o \"cancelar\"* en cualquier momento para volver al inicio.`,
       );
     },
     TRANSMISSION_CITY: async () => {
@@ -107,12 +115,12 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
       // 🔥 BUSCAMOS EL USUARIO EN DB
 
       // 👇 SI YA TIENE TELEFONO → SALTAMOS EL ESTADO
-      // Validar que el teléfono sea un número de 10 dígitos
+      // Validar que el teléfono sea un número o string de 10 dígitos
       if (
-        typeof userData.phone === "number" &&
-        userData.phone.toString().length === 10
+        (typeof userData.phone === "number" && userData.phone.toString().length === 10) ||
+        (typeof userData.phone === "string" && userData.phone.replace(/\D/g, "").length === 10)
       ) {
-        stateData.contactPhone = userData.phone;
+        stateData.contactPhone = Number(userData.phone);
         stateData.contactName = userData.name;
         setStateData(user, stateData);
 
@@ -128,7 +136,6 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
           stateData,
           userData,
         );
-        
       }
 
       // ❗ Si NO tiene teléfono → lo pedimos
@@ -152,10 +159,10 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
       stateData.contactPhone = Number(phone);
       setStateData(user, stateData);
 
-      const usuarioDb = await findOrCreateUser(user);
+      const usuarioDb = await findOrCreateUser("WHATSAPP", user);
 
       await updateUserPhoneAndName(
-        usuarioDb.whatsappId || user,
+        usuarioDb._id,
         stateData.contactPhone,
         stateData.contactName
       );
