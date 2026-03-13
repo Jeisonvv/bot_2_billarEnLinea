@@ -3,7 +3,8 @@
 // Enruta los mensajes recibidos y delega a los flujos o controladores correspondientes
 // =============================
 
-import { getState, setState } from "./stateManager.js";
+import stateManager from "./stateManager.js";
+const { getState, setState } = stateManager;
 import { classifyIntent } from "./aiClassifier.js";
 import { storeFlow } from "./flows/store.flow.js";
 import { eventsFlow } from "./flows/evnts/events.flow.js";

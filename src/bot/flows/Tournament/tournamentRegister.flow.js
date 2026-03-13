@@ -1,6 +1,7 @@
 // tournamentRegister.flow.js
 // Flujo modular para inscripción a torneos con manejo de estados
-import { getStateData, setStateData, clearStateData } from '../../stateManager.js';
+import stateManager from '../../stateManager.js';
+const { getStateData, setStateData, clearStateData } = stateManager;
 import { TOURNAMENTS, getTournamentsList, findTournamentByName, preguntasTorneo } from './tournamentRegister.helpers.js';
 
 export async function tournamentRegisterFlow(client, msg, state) {

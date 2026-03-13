@@ -1,9 +1,5 @@
-import {
-  setState,
-  getStateData,
-  setStateData,
-  clearStateData,
-} from "../../stateManager.js";
+import stateManager from "../../stateManager.js";
+const { setState, getStateData, setStateData, clearStateData } = stateManager;
 import {
   upDateName,
   findOrCreateUser,
@@ -61,7 +57,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
     },
     TRANSMISSION_CITY: async () => {
       stateData.billiardName = text;
-      setStateData(user, stateData);
+      await setStateData(user, stateData);
       await setState(user, "TRANSMISSION_TOURNAMENT_TYPE");
       return client.sendMessage(
         user,
@@ -70,7 +66,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
     },
     TRANSMISSION_TOURNAMENT_TYPE: async () => {
       stateData.city = text;
-      setStateData(user, stateData);
+      await setStateData(user, stateData);
       await setState(user, "TRANSMISSION_TOURNAMENT_SELECT");
       return client.sendMessage(
         user,
@@ -86,7 +82,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
           "Responde 1 para Relámpago o 2 para Abierto.",
         );
       }
-      setStateData(user, stateData);
+      await setStateData(user, stateData);
       await setState(user, "TRANSMISSION_DATE");
       return client.sendMessage(user, "📅 ¿Qué fecha tienes prevista?");
     },

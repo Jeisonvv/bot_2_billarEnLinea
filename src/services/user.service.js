@@ -76,7 +76,12 @@ export const findOrCreateUser = async (provider, providerId) => {
 };
 
 // Registrar interacción/interés
+
 export const registerUserInteraction = async ({ userId, interestType, channel }) => {
+  if (!userId) {
+    console.error("[registerUserInteraction] userId es undefined, abortando llamada.");
+    return null;
+  }
   // Obtener usuario
   let user = await fetch(`${BASE_URL}/${userId}`, {
     headers: {
@@ -125,6 +130,10 @@ export const registerUserInteraction = async ({ userId, interestType, channel })
 
 // Actualizar nombre
 export const upDateName = async (userId, newName) => {
+  if (!userId) {
+    console.error("[upDateName] userId es undefined, abortando llamada.");
+    return null;
+  }
   await fetch(`${BASE_URL}/${userId}`, {
     method: "PATCH",
     headers: {
@@ -146,6 +155,10 @@ export const upDateName = async (userId, newName) => {
 
 // Actualizar teléfono y nombre
 export const updateUserPhoneAndName = async (userId, newPhone, newName) => {
+  if (!userId) {
+    console.error("[updateUserPhoneAndName] userId es undefined, abortando llamada.");
+    return null;
+  }
   await fetch(`${BASE_URL}/${userId}`, {
     method: "PATCH",
     headers: {
@@ -158,6 +171,10 @@ export const updateUserPhoneAndName = async (userId, newPhone, newName) => {
 
 // Actualizar estado conversacional
 export const updateConversationState = async (userId, channel, currentState, stateData = {}) => {
+  if (!userId) {
+    console.error("[updateConversationState] userId es undefined, abortando llamada.");
+    return null;
+  }
   await fetch(`${BASE_URL}/${userId}/conversation-state`, {
     method: "PUT",
     headers: {

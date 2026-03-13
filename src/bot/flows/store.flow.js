@@ -1,4 +1,5 @@
-import { setState } from "../stateManager.js"
+import stateManager from "../stateManager.js"
+const { setState } = stateManager
 import { registerUserInteraction } from "../../services/user.service.js";
 import { findOrCreateUser } from "../../services/user.service.js";
 import { stateTypingDelay } from "../../utils/stateTipingDelay.js";
