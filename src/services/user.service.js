@@ -1,10 +1,8 @@
 // Obtener solo el estado conversacional de un usuario por canal
+import { buildBackendUrl, fetchWithBackendAuth } from "./backend-auth.js";
+
 export const getConversationState = async (userId, channel = "WHATSAPP") => {
-  const res = await fetch(`${BASE_URL}/${userId}/conversation-state?channel=${channel}`, {
-    headers: {
-      "Authorization": `Bearer ${jwtToken}`
-    }
-  });
+  const res = await fetchWithBackendAuth(`${BASE_URL}/${userId}/conversation-state?channel=${channel}`);
   if (!res.ok) return null;
   const data = await res.json();
   return data.data;
@@ -25,36 +23,21 @@ const getNow = () => dayjs().tz("America/Bogota").toDate();
 // Si ocurre un error de duplicado (E11000), lo captura y retorna el usuario existente.
 
 
-const BASE_URL = "http://localhost:3000/api/users";
-const AUTH_URL = "http://localhost:3000/api/auth/login";
-
-// Token JWT tomado de variable de entorno
-import dotenv from "dotenv";
-dotenv.config();
-const jwtToken = process.env.BOT_JWT_TOKEN;
+const BASE_URL = buildBackendUrl("/api/users");
 
 // Buscar o crear usuario por canal y providerId
 export const findOrCreateUser = async (provider, providerId) => {
   try {
-    // Esperar a que el bot esté autenticado
-    if (!jwtToken) await loginBot();
-    let res = await fetch(`${BASE_URL}/by-provider/${provider}/${providerId}`, {
-      headers: {
-        "Authorization": `Bearer ${jwtToken}`
-      }
-    });
+    let res = await fetchWithBackendAuth(`${BASE_URL}/by-provider/${provider}/${providerId}`);
     if (res.ok) {
       const data = await res.json();
       // console.log("[findOrCreateUser] GET response:", data);
       return data.data;
     }
     // Si no existe, lo creas vía POST
-    res = await fetch(`${BASE_URL}`, {
+    res = await fetchWithBackendAuth(`${BASE_URL}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${jwtToken}`
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         identities: [{ provider, providerId }]
       })
@@ -83,11 +66,7 @@ export const registerUserInteraction = async ({ userId, interestType, channel })
     return null;
   }
   // Obtener usuario
-  let user = await fetch(`${BASE_URL}/${userId}`, {
-    headers: {
-      "Authorization": `Bearer ${jwtToken}`
-    }
-  });
+  let user = await fetchWithBackendAuth(`${BASE_URL}/${userId}`);
   if (!user.ok) return null;
   user = await user.json();
   user = user.data;
@@ -107,12 +86,9 @@ export const registerUserInteraction = async ({ userId, interestType, channel })
   console.log("[registerUserInteraction] interests PATCH:", JSON.stringify(interests, null, 2));
 
   // Actualizar usuario
-  const patchRes = await fetch(`${BASE_URL}/${userId}`, {
+  const patchRes = await fetchWithBackendAuth(`${BASE_URL}/${userId}`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${jwtToken}`
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ interests })
   });
   const patchText = await patchRes.text();
@@ -134,20 +110,13 @@ export const upDateName = async (userId, newName) => {
     console.error("[upDateName] userId es undefined, abortando llamada.");
     return null;
   }
-  await fetch(`${BASE_URL}/${userId}`, {
+  await fetchWithBackendAuth(`${BASE_URL}/${userId}`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${jwtToken}`
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: newName })
   });
   // Obtener el usuario actualizado (con autenticación)
-  const res = await fetch(`${BASE_URL}/${userId}`, {
-    headers: {
-      "Authorization": `Bearer ${jwtToken}`
-    }
-  });
+  const res = await fetchWithBackendAuth(`${BASE_URL}/${userId}`);
   if (!res.ok) return null;
   const data = await res.json();
   return data.data;
@@ -159,12 +128,9 @@ export const updateUserPhoneAndName = async (userId, newPhone, newName) => {
     console.error("[updateUserPhoneAndName] userId es undefined, abortando llamada.");
     return null;
   }
-  await fetch(`${BASE_URL}/${userId}`, {
+  await fetchWithBackendAuth(`${BASE_URL}/${userId}`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${jwtToken}`
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone: newPhone, name: newName })
   });
 };
@@ -175,12 +141,9 @@ export const updateConversationState = async (userId, channel, currentState, sta
     console.error("[updateConversationState] userId es undefined, abortando llamada.");
     return null;
   }
-  await fetch(`${BASE_URL}/${userId}/conversation-state`, {
+  await fetchWithBackendAuth(`${BASE_URL}/${userId}/conversation-state`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${jwtToken}`
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ channel, currentState, stateData })
   });
 };

@@ -17,13 +17,20 @@ const getState = async (whatsappId) => {
 // Guarda el estado actual en el backend
 const setState = async (whatsappId, state) => {
 	const user = await findOrCreateUser(CHANNEL, whatsappId);
-	await updateConversationState(user._id, CHANNEL, state, user?.conversationState?.stateData || {});
+	const conversationState = await getConversationState(user._id, CHANNEL);
+	await updateConversationState(user._id, CHANNEL, state, conversationState?.stateData || {});
 };
 
 // Guarda datos adicionales del estado conversacional
 const setStateData = async (whatsappId, data) => {
 	const user = await findOrCreateUser(CHANNEL, whatsappId);
-	await updateConversationState(user._id, CHANNEL, user?.conversationState?.currentState || "IDLE", data);
+	const conversationState = await getConversationState(user._id, CHANNEL);
+	await updateConversationState(
+		user._id,
+		CHANNEL,
+		conversationState?.currentState || "IDLE",
+		data
+	);
 };
 
 

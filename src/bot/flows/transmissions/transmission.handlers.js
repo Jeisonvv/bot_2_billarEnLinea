@@ -30,7 +30,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
     TRANSMISSION_INITIAL: async () => {
       if (userData.name && userData.name.trim().length > 1) {
         stateData.contactName = userData.name;
-        setStateData(user, stateData);
+        await setStateData(user, stateData);
         await setState(user, "TRANSMISSION_CITY");
         return client.sendMessage(
           user,
@@ -48,7 +48,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
         );
       }
       stateData.contactName = updatedUser.name;
-      setStateData(user, stateData);
+      await setStateData(user, stateData);
       await setState(user, "TRANSMISSION_CITY");
       return client.sendMessage(
         user,
@@ -88,7 +88,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
     },
     TRANSMISSION_DATE: async () => {
       stateData.eventDate = text;
-      setStateData(user, stateData);
+      await setStateData(user, stateData);
       await setState(user, "TRANSMISSION_SERVICE_TYPE");
       return client.sendMessage(
         user,
@@ -106,7 +106,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
       }
 
       stateData.serviceType = serviceType;
-      setStateData(user, stateData);
+  await setStateData(user, stateData);
 
       // 🔥 BUSCAMOS EL USUARIO EN DB
 
@@ -118,13 +118,15 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
       ) {
         stateData.contactPhone = Number(userData.phone);
         stateData.contactName = userData.name;
-        setStateData(user, stateData);
+        await setStateData(user, stateData);
+
+        const usuarioDb = await findOrCreateUser("WHATSAPP", user);
 
         // 👉 ejecutamos directamente la lógica final
         await registerUserInteraction({
-            whatsappId: user,
+            userId: usuarioDb._id,
             interestType: "TRANSMISSION",
-            statusUpdate: "QUOTED"
+            channel: "WHATSAPP"
           });
         return await finalizarLeadTransmision(
           client,
@@ -153,7 +155,7 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
         );
       }
       stateData.contactPhone = Number(phone);
-      setStateData(user, stateData);
+      await setStateData(user, stateData);
 
       const usuarioDb = await findOrCreateUser("WHATSAPP", user);
 
@@ -165,9 +167,9 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
 
       // Actualizamos el status a 'QUOTED' al terminar el registro de la cotización
       await registerUserInteraction({
-        whatsappId: user,
+        userId: usuarioDb._id,
         interestType: "TRANSMISSION",
-        statusUpdate: "QUOTED"
+        channel: "WHATSAPP"
       });
 
       return await finalizarLeadTransmision(

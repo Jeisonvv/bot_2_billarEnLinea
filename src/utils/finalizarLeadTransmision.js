@@ -1,9 +1,7 @@
 import stateManager from "../bot/stateManager.js";
 const { clearStateData, setState } = stateManager;
 
-import dotenv from "dotenv";
-dotenv.config();
-const jwtToken = process.env.BOT_JWT_TOKEN;
+import { buildBackendUrl, fetchWithBackendAuth } from "../services/backend-auth.js";
 
 export const finalizarLeadTransmision = async (client, user, stateData, usuarioDb) => {
   // Enviar solicitud al backend
@@ -20,12 +18,9 @@ export const finalizarLeadTransmision = async (client, user, stateData, usuarioD
       comments: stateData.comments || ""
     };
     console.log("[BOT] Enviando solicitud de transmisión:", payload);
-    await fetch(process.env.BACKEND_URL + "/api/transmissions", {
+    await fetchWithBackendAuth(buildBackendUrl("/api/transmissions"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${jwtToken}`
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
   } catch (err) {
