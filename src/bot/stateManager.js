@@ -1,50 +1,111 @@
-// Todas las funciones quedan vacías o retornan valores por defecto, ya que la lógica debe estar en el backend.
-
-
-
-import { findOrCreateUser, updateConversationState, getConversationState } from "../services/user.service.js";
+import {
+	ensureLeadSession,
+	getLeadSession,
+	updateLeadSessionState,
+} from "../services/lead-session.service.js";
+import {
+	getConversationState,
+	getUserById,
+	getUserByProvider,
+	updateConversationState,
+} from "../services/user.service.js";
 
 const CHANNEL = "WHATSAPP";
 
+const getPersistedUser = async (whatsappId) => {
+	const persistedUser = await getUserByProvider(CHANNEL, whatsappId);
+	if (persistedUser?._id) {
+		return persistedUser;
+	}
 
-// Obtiene el estado actual del usuario desde el backend usando el nuevo endpoint
+	const session = await getLeadSession(CHANNEL, whatsappId);
+	if (session?.persistedUserId) {
+		return getUserById(String(session.persistedUserId));
+	}
+
+	return null;
+};
+
+const getSession = async (whatsappId) => {
+	const session = await getLeadSession(CHANNEL, whatsappId);
+	if (session) {
+		return session;
+	}
+
+	return ensureLeadSession(CHANNEL, whatsappId);
+	};
+
+
 const getState = async (whatsappId) => {
-	const user = await findOrCreateUser(CHANNEL, whatsappId);
-	const state = await getConversationState(user._id, CHANNEL);
-	return state?.currentState || "IDLE";
+	const persistedUser = await getPersistedUser(whatsappId);
+	if (persistedUser?._id) {
+		const state = await getConversationState(persistedUser._id, CHANNEL);
+		return state?.currentState || "IDLE";
+	}
+
+	const session = await getSession(whatsappId);
+	return session?.currentState || "IDLE";
 };
 
-// Guarda el estado actual en el backend
 const setState = async (whatsappId, state) => {
-	const user = await findOrCreateUser(CHANNEL, whatsappId);
-	const conversationState = await getConversationState(user._id, CHANNEL);
-	await updateConversationState(user._id, CHANNEL, state, conversationState?.stateData || {});
+	const persistedUser = await getPersistedUser(whatsappId);
+	if (persistedUser?._id) {
+		const currentState = await getConversationState(persistedUser._id, CHANNEL);
+		await updateConversationState(
+			persistedUser._id,
+			CHANNEL,
+			state,
+			currentState?.stateData || {},
+		);
+		return;
+	}
+
+	const session = await getSession(whatsappId);
+	await updateLeadSessionState(CHANNEL, whatsappId, state, session?.stateData || {});
 };
 
-// Guarda datos adicionales del estado conversacional
 const setStateData = async (whatsappId, data) => {
-	const user = await findOrCreateUser(CHANNEL, whatsappId);
-	const conversationState = await getConversationState(user._id, CHANNEL);
-	await updateConversationState(
-		user._id,
+	const persistedUser = await getPersistedUser(whatsappId);
+	if (persistedUser?._id) {
+		const currentState = await getConversationState(persistedUser._id, CHANNEL);
+		await updateConversationState(
+			persistedUser._id,
+			CHANNEL,
+			currentState?.currentState || "IDLE",
+			data,
+		);
+		return;
+	}
+
+	const session = await getSession(whatsappId);
+	await updateLeadSessionState(
 		CHANNEL,
-		conversationState?.currentState || "IDLE",
+		whatsappId,
+		session?.currentState || "IDLE",
 		data
 	);
 };
 
 
-// Obtiene los datos adicionales del estado conversacional usando el nuevo endpoint
 const getStateData = async (whatsappId) => {
-	const user = await findOrCreateUser(CHANNEL, whatsappId);
-	const state = await getConversationState(user._id, CHANNEL);
-	return state?.stateData || {};
+	const persistedUser = await getPersistedUser(whatsappId);
+	if (persistedUser?._id) {
+		const state = await getConversationState(persistedUser._id, CHANNEL);
+		return state?.stateData || {};
+	}
+
+	const session = await getSession(whatsappId);
+	return session?.stateData || {};
 };
 
-// Limpia los datos del estado conversacional
 const clearStateData = async (whatsappId) => {
-	const user = await findOrCreateUser(CHANNEL, whatsappId);
-	await updateConversationState(user._id, CHANNEL, "IDLE", {});
+	const persistedUser = await getPersistedUser(whatsappId);
+	if (persistedUser?._id) {
+		await updateConversationState(persistedUser._id, CHANNEL, "IDLE", {});
+		return;
+	}
+
+	await updateLeadSessionState(CHANNEL, whatsappId, "IDLE", {});
 };
 export default {
 	getState,

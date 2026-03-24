@@ -1,22 +1,22 @@
 // Este archivo define el flujo para eventos.
-import { registerUserInteraction, findOrCreateUser } from "../../../services/user.service.js";
+import { registerUserInteraction } from "../../../services/user.service.js";
+import { updateContactLeadData } from "../../../services/contact-context.service.js";
 
 import { stateTypingDelay } from "../../../utils/stateTipingDelay.js";
 // Responde a los usuarios que preguntan por torneos, eventos o actividades especiales.
 
-export const eventsFlow = async (client, msg) => {
+export const eventsFlow = async (client, msg, contactContext) => {
   await stateTypingDelay(msg);
-   const user = msg.from;
- 
-   // 1️⃣ Aseguramos que el usuario exista en DB
-   const userData = await findOrCreateUser("WHATSAPP", user);
- 
-   // 2️⃣ Registramos que mostró interés en eventos
-   await registerUserInteraction({
-     userId: userData?._id,
-     interestType: "EVENTS",
-     channel: "WHATSAPP"
-   });
+
+   await updateContactLeadData(contactContext, { interestType: "EVENTS" });
+
+   if (contactContext.persistedUser?._id) {
+     await registerUserInteraction({
+       userId: contactContext.persistedUser._id,
+       interestType: "EVENTS",
+       channel: "WHATSAPP"
+     });
+   }
 
   await client.sendMessage(
     msg.from,

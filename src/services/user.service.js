@@ -25,15 +25,57 @@ const getNow = () => dayjs().tz("America/Bogota").toDate();
 
 const BASE_URL = buildBackendUrl("/api/users");
 
+export const getUserByProvider = async (provider, providerId) => {
+  try {
+    const res = await fetchWithBackendAuth(`${BASE_URL}/by-provider/${provider}/${providerId}`);
+
+    if (res.status === 404) {
+      return null;
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`No fue posible consultar el usuario: ${text}`);
+    }
+
+    const data = await res.json();
+    return data.data;
+  } catch (error) {
+    console.error("[getUserByProvider] Error:", error);
+    throw error;
+  }
+};
+
+export const getUserById = async (userId) => {
+  try {
+    const res = await fetchWithBackendAuth(`${BASE_URL}/${userId}`);
+
+    if (res.status === 404) {
+      return null;
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`No fue posible consultar el usuario por id: ${text}`);
+    }
+
+    const data = await res.json();
+    return data.data;
+  } catch (error) {
+    console.error("[getUserById] Error:", error);
+    throw error;
+  }
+};
+
 // Buscar o crear usuario por canal y providerId
 export const findOrCreateUser = async (provider, providerId) => {
   try {
-    let res = await fetchWithBackendAuth(`${BASE_URL}/by-provider/${provider}/${providerId}`);
-    if (res.ok) {
-      const data = await res.json();
-      // console.log("[findOrCreateUser] GET response:", data);
-      return data.data;
+    const existingUser = await getUserByProvider(provider, providerId);
+    if (existingUser) {
+      return existingUser;
     }
+
+    let res;
     // Si no existe, lo creas vía POST
     res = await fetchWithBackendAuth(`${BASE_URL}`, {
       method: "POST",
@@ -83,7 +125,7 @@ export const registerUserInteraction = async ({ userId, interestType, channel })
   }
 
   // Log para depuración
-  console.log("[registerUserInteraction] interests PATCH:", JSON.stringify(interests, null, 2));
+  // console.log("[registerUserInteraction] interests PATCH:", JSON.stringify(interests, null, 2));
 
   // Actualizar usuario
   const patchRes = await fetchWithBackendAuth(`${BASE_URL}/${userId}`, {
@@ -97,7 +139,7 @@ export const registerUserInteraction = async ({ userId, interestType, channel })
   }
   try {
     const patchData = JSON.parse(patchText);
-    console.log("[registerUserInteraction] PATCH response:", patchData);
+    // console.log("[registerUserInteraction] PATCH response:", patchData);
   } catch (err) {
     console.error("[registerUserInteraction] PATCH response no es JSON:", patchText);
   }

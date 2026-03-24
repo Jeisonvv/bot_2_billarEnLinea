@@ -1,6 +1,10 @@
 import stateManager from "../../stateManager.js";
 const { setState, getStateData, setStateData, clearStateData } = stateManager;
 import {
+  ensurePersistedContact,
+  updateContactLeadData,
+} from "../../../services/contact-context.service.js";
+import {
   upDateName,
   findOrCreateUser,
   updateUserPhoneAndName,
@@ -10,13 +14,33 @@ import { finalizarLeadTransmision } from "../../../utils/finalizarLeadTransmisio
 import { messageWelcome } from "../../../utils/messages.js";
 import { stateTypingDelay } from "../../../utils/stateTipingDelay.js";
 
-export const handleTransmissionSteps = async (client, msg, state, userData) => {
+function buildTransmissionLeadPayload(stateData) {
+  return {
+    ...(stateData.contactName && { name: stateData.contactName }),
+    ...(stateData.contactPhone && { phone: String(stateData.contactPhone) }),
+    ...(stateData.city && { city: stateData.city }),
+    ...(stateData.billiardName && { businessName: stateData.billiardName }),
+    interestType: "TRANSMISSION",
+    extraData: {
+      ...(stateData.tournamentType && { tournamentType: stateData.tournamentType }),
+      ...(stateData.eventDate && { eventDate: stateData.eventDate }),
+      ...(stateData.serviceType && { serviceType: stateData.serviceType }),
+    },
+  };
+}
+
+function isModernContactContext(contactContext) {
+  return Boolean(contactContext?.provider && contactContext?.providerId);
+}
+
+export const handleTransmissionSteps = async (client, msg, state, contactContext) => {
     await stateTypingDelay(msg);
   const user = msg.from;
   const text = msg.body?.trim();
   const lowerText = text?.toLowerCase();
+  const useModernContext = isModernContactContext(contactContext);
+  const userData = useModernContext ? (contactContext.profile || {}) : (contactContext || {});
 
-  // 🔴 Salir del flujo
   if (["menu", "menú", "salir", "cancelar", "inicio"].includes(lowerText)) {
     clearStateData(user);
     await setState(user, "IDLE");
@@ -31,33 +55,35 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
       if (userData.name && userData.name.trim().length > 1) {
         stateData.contactName = userData.name;
         await setStateData(user, stateData);
+        if (useModernContext) {
+          await updateContactLeadData(contactContext, { name: userData.name, interestType: "TRANSMISSION" });
+        }
         await setState(user, "TRANSMISSION_CITY");
         return client.sendMessage(
           user,
           `Perfecto 🙌\n🏢 ¿Cómo se llama el billar?\n\nRecuerda que puedes escribir *"menu" o "cancelar"* en cualquier momento para volver al inicio.`,
         );
       }
-      console.log("[DEBUG] Usuario sin nombre, guardando nombre:", text);
-      // Buscar el usuario para obtener el _id de MongoDB
-      const usuarioDb = await findOrCreateUser("WHATSAPP", user);
-      const updatedUser = await upDateName(usuarioDb._id, text);
-      if (!updatedUser) {
-        return client.sendMessage(
-          user,
-          "❌ Ocurrió un error al guardar tu nombre. Por favor intenta de nuevo más tarde."
-        );
+      if (useModernContext) {
+        await updateContactLeadData(contactContext, { name: text, interestType: "TRANSMISSION" });
+      } else {
+        const usuarioDb = await findOrCreateUser("WHATSAPP", user);
+        await upDateName(usuarioDb._id, text);
       }
-      stateData.contactName = updatedUser.name;
+      stateData.contactName = text;
       await setStateData(user, stateData);
       await setState(user, "TRANSMISSION_CITY");
       return client.sendMessage(
         user,
-        `Perfecto ${updatedUser.name} 🙌\n\n🏢 ¿Cómo se llama el billar?\n\nRecuerda que puedes escribir *\"menu\" o \"cancelar\"* en cualquier momento para volver al inicio.`,
+        `Perfecto ${text} 🙌\n\n🏢 ¿Cómo se llama el billar?\n\nRecuerda que puedes escribir *\"menu\" o \"cancelar\"* en cualquier momento para volver al inicio.`,
       );
     },
     TRANSMISSION_CITY: async () => {
       stateData.billiardName = text;
       await setStateData(user, stateData);
+      if (useModernContext) {
+        await updateContactLeadData(contactContext, { businessName: text, interestType: "TRANSMISSION" });
+      }
       await setState(user, "TRANSMISSION_TOURNAMENT_TYPE");
       return client.sendMessage(
         user,
@@ -67,6 +93,9 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
     TRANSMISSION_TOURNAMENT_TYPE: async () => {
       stateData.city = text;
       await setStateData(user, stateData);
+      if (useModernContext) {
+        await updateContactLeadData(contactContext, { city: text, interestType: "TRANSMISSION" });
+      }
       await setState(user, "TRANSMISSION_TOURNAMENT_SELECT");
       return client.sendMessage(
         user,
@@ -106,12 +135,11 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
       }
 
       stateData.serviceType = serviceType;
-  await setStateData(user, stateData);
+      await setStateData(user, stateData);
+      if (useModernContext) {
+        await updateContactLeadData(contactContext, buildTransmissionLeadPayload(stateData));
+      }
 
-      // 🔥 BUSCAMOS EL USUARIO EN DB
-
-      // 👇 SI YA TIENE TELEFONO → SALTAMOS EL ESTADO
-      // Validar que el teléfono sea un número o string de 10 dígitos
       if (
         (typeof userData.phone === "number" && userData.phone.toString().length === 10) ||
         (typeof userData.phone === "string" && userData.phone.replace(/\D/g, "").length === 10)
@@ -120,9 +148,13 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
         stateData.contactName = userData.name;
         await setStateData(user, stateData);
 
-        const usuarioDb = await findOrCreateUser("WHATSAPP", user);
+        const usuarioDb = useModernContext
+          ? await ensurePersistedContact(contactContext, {
+              leadData: buildTransmissionLeadPayload(stateData),
+              qualified: true,
+            })
+          : await findOrCreateUser("WHATSAPP", user);
 
-        // 👉 ejecutamos directamente la lógica final
         await registerUserInteraction({
             userId: usuarioDb._id,
             interestType: "TRANSMISSION",
@@ -136,7 +168,6 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
         );
       }
 
-      // ❗ Si NO tiene teléfono → lo pedimos
       await setState(user, "TRANSMISSION_CONTACT_PHONE");
 
       return client.sendMessage(
@@ -146,7 +177,6 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
     },
 
     TRANSMISSION_CONTACT_PHONE: async () => {
-      // Validar que el número tenga exactamente 10 dígitos numéricos
       const phone = text.replace(/\D/g, ""); // Elimina todo lo que no sea dígito
       if (phone.length !== 10) {
         return client.sendMessage(
@@ -157,15 +187,21 @@ export const handleTransmissionSteps = async (client, msg, state, userData) => {
       stateData.contactPhone = Number(phone);
       await setStateData(user, stateData);
 
-      const usuarioDb = await findOrCreateUser("WHATSAPP", user);
+      const usuarioDb = useModernContext
+        ? await ensurePersistedContact(contactContext, {
+            leadData: buildTransmissionLeadPayload(stateData),
+            qualified: true,
+          })
+        : await findOrCreateUser("WHATSAPP", user);
 
-      await updateUserPhoneAndName(
-        usuarioDb._id,
-        stateData.contactPhone,
-        stateData.contactName
-      );
+      if (!useModernContext) {
+        await updateUserPhoneAndName(
+          usuarioDb._id,
+          stateData.contactPhone,
+          stateData.contactName,
+        );
+      }
 
-      // Actualizamos el status a 'QUOTED' al terminar el registro de la cotización
       await registerUserInteraction({
         userId: usuarioDb._id,
         interestType: "TRANSMISSION",

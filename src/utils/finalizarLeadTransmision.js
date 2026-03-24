@@ -3,7 +3,10 @@ const { clearStateData, setState } = stateManager;
 
 import { buildBackendUrl, fetchWithBackendAuth } from "../services/backend-auth.js";
 
-export const finalizarLeadTransmision = async (client, user, stateData, usuarioDb) => {
+export const finalizarLeadTransmision = async (client, user, stateData) => {
+  const contactNameParts = String(stateData.contactName || "").trim().split(/\s+/).filter(Boolean);
+  const greetingName = [contactNameParts[0], contactNameParts[1]].filter(Boolean).join(" ");
+
   // Enviar solicitud al backend
   try {
     const payload = {
@@ -17,7 +20,7 @@ export const finalizarLeadTransmision = async (client, user, stateData, usuarioD
       whatsappId: user,
       comments: stateData.comments || ""
     };
-    console.log("[BOT] Enviando solicitud de transmisión:", payload);
+    
     await fetchWithBackendAuth(buildBackendUrl("/api/transmissions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -33,7 +36,7 @@ export const finalizarLeadTransmision = async (client, user, stateData, usuarioD
 
   await client.sendMessage(
     user,
-    `✅ Gracias ${stateData.contactName}.\nNuestro equipo revisará la información y te enviará la propuesta en breve.`
+    `✅ Gracias ${greetingName || stateData.contactName}.\nNuestro equipo revisará la información y te enviará la propuesta en breve.`
   );
 
   await client.sendMessage(

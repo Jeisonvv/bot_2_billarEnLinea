@@ -1,34 +1,24 @@
 import stateManager from "../../stateManager.js";
 const { setState } = stateManager;
-import { registerUserInteraction, findOrCreateUser } from "../../../services/user.service.js";
+import { updateContactLeadData } from "../../../services/contact-context.service.js";
 import { stateTypingDelay } from "../../../utils/stateTipingDelay.js";
 
-export const transmissionsFlow = async (client, msg, userData) => {
+export const transmissionsFlow = async (client, msg, contactContext) => {
   await stateTypingDelay(msg);
   const user = msg.from;
+  const userData = contactContext.profile;
 
-  // 2️⃣ Registramos interés solo si el status NO es 'QUOTED'
-  const usuarioDb = await findOrCreateUser("WHATSAPP", user);
-  if (usuarioDb.status !== "QUOTED") {
-    await registerUserInteraction({
-      userId: usuarioDb._id,
-      interestType: "TRANSMISSION",
-      channel: "WHATSAPP"
-    });
-  }
+  await updateContactLeadData(contactContext, { interestType: "TRANSMISSION" });
 
-  // 🔥 LÓGICA CLAVE:
-  // Si ya tiene nombre → saltamos pedirlo
   if (userData.name && userData.name.trim().length > 1) {
     await setState(user, "TRANSMISSION_CITY");
 
     return client.sendMessage(
       user,
-      `Perfecto ${userData.name} 🙌\n\n🏢 ¿Cómo se llama el billar?\n\nRecuerda que puedes escribir *"menu" o "cancelar"* en cualquier momento para volver al inicio.`
+      `Perfecto ${userData.name.split(" ")[0]} 🙌\n\n🏢 ¿Cómo se llama el billar?\n\nRecuerda que puedes escribir *"menu" o "cancelar"* en cualquier momento para volver al inicio.`
     );
   }
 
-  // Si no tiene nombre → lo pedimos
   await setState(user, "TRANSMISSION_INITIAL");
 
   return client.sendMessage(

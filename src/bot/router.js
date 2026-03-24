@@ -13,7 +13,7 @@ import { rafflesFlow } from "./flows/raffles.flow.js";
 import { tournamentRegisterFlow } from "./flows/Tournament/tournamentRegister.flow.js";
 import { transmissionsFlow } from "./flows/transmissions/transmissions.flow.js";
 import { billarInfoFlow } from "./flows/billarInfo.flow.js";
-import { findOrCreateUser } from "../services/user.service.js";
+import { resolveContactContext } from "../services/contact-context.service.js";
 import { handleTransmissionSteps } from "./flows/transmissions/transmission.handlers.js";
 import { messageWelcome } from "../utils/messages.js";
 
@@ -24,11 +24,11 @@ const router = express.Router();
 // handleMessage: Lógica principal para enrutar mensajes entrantes
 // =============================
 export const handleMessage = async (client, msg) => {
-  // Simula que el bot está "escribiendo" antes de responder
   const user = msg.from;
   const text = msg.body?.toLowerCase().trim();
-  const userData = await findOrCreateUser("WHATSAPP", user);
   if (!text) return;
+  const contactContext = await resolveContactContext("WHATSAPP", user);
+  const userData = contactContext.profile;
   const currentState = await getState(user);
 
   // 1️⃣ Si ya está en un flujo activo, continuar ese flujo
@@ -52,9 +52,9 @@ export const handleMessage = async (client, msg) => {
 
   switch (intent) {
     case "STORE":
-      return storeFlow(client, msg, userData);
+      return storeFlow(client, msg, contactContext);
     case "EVENTS":
-      return eventsFlow(client, msg);
+      return eventsFlow(client, msg, contactContext);
     case "INFO":
       return infoFlow(client, msg, userData);
     case "RAFFLES":
@@ -63,9 +63,8 @@ export const handleMessage = async (client, msg) => {
       await setState(user, "INSCRIPCION_TORNEO");
       return tournamentRegisterFlow(client, msg, userData);
     case "TRANSMISSIONS":
-      return transmissionsFlow(client, msg, userData);
+      return transmissionsFlow(client, msg, contactContext);
     default:
-      // Responde con el mensaje de bienvenida si no reconoce la intención
       return client.sendMessage(user, messageWelcome(userData));
   }
 };
@@ -76,9 +75,9 @@ export const handleMessage = async (client, msg) => {
 const continueFlow = async (client, msg, state) => {
   const user = msg.from;
   const text = msg.body?.toLowerCase().trim();
-  const userData = await findOrCreateUser("WHATSAPP", user);
+  const contactContext = await resolveContactContext("WHATSAPP", user);
+  const userData = contactContext.profile;
 
-  // Si el estado es de toma de control humano, el bot no responde
   if (state === "HUMAN_TAKEOVER") {
     return;
   }
@@ -88,9 +87,8 @@ const continueFlow = async (client, msg, state) => {
   if (state === "INSCRIPCION_TORNEO") {
     return tournamentRegisterFlow(client, msg, userData);
   }
-  // Subflujo de transmisión
   if (typeof state === "string" && state.startsWith("TRANSMISSION_")) {
-    return handleTransmissionSteps(client, msg, state, userData);
+    return handleTransmissionSteps(client, msg, state, contactContext);
   }
 
   switch (state) {
