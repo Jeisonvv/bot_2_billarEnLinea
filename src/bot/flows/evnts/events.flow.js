@@ -9,13 +9,13 @@ export const eventsFlow = async (client, msg) => {
    const user = msg.from;
  
    // 1️⃣ Aseguramos que el usuario exista en DB
-   const userData = await findOrCreateUser(user);
+   const userData = await findOrCreateUser("WHATSAPP", user);
  
    // 2️⃣ Registramos que mostró interés en eventos
    await registerUserInteraction({
-     whatsappId: user,
+     userId: userData?._id,
      interestType: "EVENTS",
-     statusUpdate: "INTERESTED"
+     channel: "WHATSAPP"
    });
 
   await client.sendMessage(

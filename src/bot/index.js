@@ -4,18 +4,40 @@
 // =============================
 
 // Importa librerías y módulos necesarios
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import whatsapp from "whatsapp-web.js";
 const { Client, LocalAuth } = whatsapp;
 import { handleMessage } from "./router.js";
 import qrcode from "qrcode-terminal";
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const authDataPath = process.env.WHATSAPP_AUTH_PATH
+  ? path.resolve(process.env.WHATSAPP_AUTH_PATH)
+  : path.resolve(currentDir, "../../.wwebjs_auth");
+const authClientId = process.env.WHATSAPP_CLIENT_ID;
+let clientInstance = null;
+let isDestroyingClient = false;
 
 
 // =============================
 // Función para inicializar el bot de WhatsApp
 // =============================
 export const initBot = async () => {
+  if (clientInstance) {
+    return clientInstance;
+  }
+
+  const authStrategyOptions = {
+    dataPath: authDataPath,
+  };
+
+  if (authClientId) {
+    authStrategyOptions.clientId = authClientId;
+  }
+
   const client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth(authStrategyOptions),
     puppeteer: {
       headless: true,
       args: [
@@ -30,20 +52,21 @@ export const initBot = async () => {
       ]
     }
   });
+  clientInstance = client;
   // Manejo de errores críticos y desconexión
   client.on("disconnected", (reason) => {
     console.error("Cliente desconectado:", reason);
-    process.exit(1);
+    clientInstance = null;
   });
 
   client.on("auth_failure", (msg) => {
     console.error("Fallo de autenticación:", msg);
-    process.exit(1);
+    clientInstance = null;
   });
 
   client.on("error", (err) => {
     console.error("Error en el cliente:", err);
-    process.exit(1);
+    clientInstance = null;
   });
 
   // Muestra el QR para conectar WhatsApp
@@ -55,6 +78,7 @@ export const initBot = async () => {
   // Bot listo para recibir mensajes
   client.on("ready", () => {
     console.log("Bot listo 🎱");
+    
   });
 
   // Maneja mensajes entrantes
@@ -75,7 +99,27 @@ export const initBot = async () => {
   try {
     await client.initialize();
   } catch (error) {
+    clientInstance = null;
     console.error('Error al inicializar el bot:', error);
+  }
+
+  return client;
+};
+
+export const stopBot = async () => {
+  if (!clientInstance || isDestroyingClient) {
+    return;
+  }
+
+  isDestroyingClient = true;
+
+  try {
+    await clientInstance.destroy();
+  } catch (error) {
+    console.error("Error al cerrar el bot:", error);
+  } finally {
+    clientInstance = null;
+    isDestroyingClient = false;
   }
 };
 // =============================

@@ -27,10 +27,8 @@ export const handleMessage = async (client, msg) => {
   // Simula que el bot está "escribiendo" antes de responder
   const user = msg.from;
   const text = msg.body?.toLowerCase().trim();
-  // Corregido: pasar provider y providerId
   const userData = await findOrCreateUser("WHATSAPP", user);
   if (!text) return;
-  await findOrCreateUser("WHATSAPP", user);
   const currentState = await getState(user);
 
   // 1️⃣ Si ya está en un flujo activo, continuar ese flujo

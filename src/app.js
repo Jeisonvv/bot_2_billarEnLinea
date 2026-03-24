@@ -9,7 +9,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Importar dependencias principales
 import express from "express";
-import { initBot } from "./bot/index.js";
+import { initBot, stopBot } from "./bot/index.js";
 import botRouter from "./bot/router.js";
 
 // =============================
@@ -37,7 +37,38 @@ app.use("/bot", botRouter);
 // =============================
 // Arranque del servidor y del bot de WhatsApp
 // =============================
-app.listen(3000, async () => {
+const server = app.listen(3000, async () => {
   console.log("Servidor corriendo en puerto 3000");
   await initBot();
+});
+
+let isShuttingDown = false;
+
+const shutdown = async (signal) => {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+  console.log(`Cerrando servidor por ${signal}...`);
+
+  try {
+    await stopBot();
+  } finally {
+    server.close(() => {
+      process.exit(0);
+    });
+
+    setTimeout(() => {
+      process.exit(0);
+    }, 5000).unref();
+  }
+};
+
+process.on("SIGINT", () => {
+  shutdown("SIGINT");
+});
+
+process.on("SIGTERM", () => {
+  shutdown("SIGTERM");
 });
